@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linked Jazz QA: human vs LLM relationships</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f6f5f2; --surface:#fcfcfb; --surface-2:#f0efec; --line:#dedcd6; --text:#0b0b0b; --text-2:#52514e; --text-3:#7a7873;
+  --accent:#2a78d6;
+  --v-agree:#1baf7a; --v-near:#2a78d6; --v-weaker:#eda100; --v-differ:#e34948; --v-human:#4a3aa7; --v-llm:#eb6834; --v-up:#e87ba4; --v-miss:#7a7873;
+  --human:#4a3aa7; --llm:#eb6834;
+  --seq1:#cde2fb; --seq2:#9ec5f4; --seq3:#5598e7; --seq4:#256abf; --seq5:#104281;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  color-scheme:dark; --bg:#141413; --surface:#1a1a19; --surface-2:#242422; --line:#33332f; --text:#fff; --text-2:#c3c2b7; --text-3:#8f8e86;
+  --accent:#3987e5; --v-agree:#199e70; --v-near:#3987e5; --v-weaker:#c98500; --v-differ:#e66767; --v-human:#9085e9; --v-llm:#d95926; --v-up:#d55181; --v-miss:#8f8e86;
+  --human:#9085e9; --llm:#d95926; --seq1:#184f95; --seq2:#1c5cab; --seq3:#2a78d6; --seq4:#5598e7; --seq5:#9ec5f4; }}
+:root[data-theme="dark"]{
+  color-scheme:dark; --bg:#141413; --surface:#1a1a19; --surface-2:#242422; --line:#33332f; --text:#fff; --text-2:#c3c2b7; --text-3:#8f8e86;
+  --accent:#3987e5; --v-agree:#199e70; --v-near:#3987e5; --v-weaker:#c98500; --v-differ:#e66767; --v-human:#9085e9; --v-llm:#d95926; --v-up:#d55181; --v-miss:#8f8e86;
+  --human:#9085e9; --llm:#d95926; --seq1:#184f95; --seq2:#1c5cab; --seq3:#2a78d6; --seq4:#5598e7; --seq5:#9ec5f4; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+header{padding:18px 16px 0;max-width:1400px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px;font-weight:650} .sub{color:var(--text-2);margin:0 0 14px}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;flex-wrap:wrap}
+nav button{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;font:inherit;color:var(--text-2);cursor:pointer}
+nav button.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+main{max-width:1400px;margin:0 auto;padding:0 16px 40px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tile .n{font-size:26px;font-weight:650;letter-spacing:-.5px} .tile .l{color:var(--text-2);font-size:12px} .tile .s{color:var(--text-3);font-size:12px;margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 8px;font-weight:650} .card h2 small{color:var(--text-3);font-weight:400;margin-left:8px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px} @media(max-width:900px){.row{grid-template-columns:1fr}}
+.bar{display:flex;height:22px;border-radius:4px;overflow:hidden;gap:2px;background:var(--surface-2)}
+.bar div{min-width:0} .bar div[title]{cursor:default}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12px;color:var(--text-2)}
+.legend span::before,.vb::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.vb{display:inline-block;font-size:12px;padding:1px 8px 1px 6px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:13px} th,td{padding:5px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--text-2);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap} th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.click{cursor:pointer} tr.click:hover{background:var(--surface-2)}
+.hm td{text-align:right;font-variant-numeric:tabular-nums;cursor:pointer;border:2px solid var(--surface)} .hm td.z{color:var(--text-3)} .hm th{font-size:12px} .hm td:hover{outline:2px solid var(--accent)}
+.hm .rowh{text-align:left;color:var(--text);font-weight:500;cursor:default}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filters select,.filters input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text)}
+.filters input[type=search]{min-width:220px}
+.chip{font:inherit;font-size:12px;padding:3px 9px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text-2);cursor:pointer}
+.chip.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.chip .cnt{opacity:.7;margin-left:4px}
+.pair{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--vc,var(--line));border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.pair .hd{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;margin-bottom:8px}
+.pair .hd .who{font-size:15px;font-weight:600} .pair .hd .meta{color:var(--text-3);font-size:12px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:900px){.cols{grid-template-columns:1fr}}
+.side{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--bg)}
+.side h4{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--text-2)}
+.side.h h4{color:var(--human)} .side.l h4{color:var(--llm)}
+.rel{font-weight:600} .st{margin:0 0 8px;padding-bottom:8px;border-bottom:1px dashed var(--line)} .st:last-child{border:0;margin:0;padding:0}
+.q{margin:4px 0 0;padding:6px 8px;background:var(--surface);border-radius:4px;color:var(--text-2);font-size:13px}
+.q .spk{color:var(--text-3);font-weight:600;margin-right:6px;font-size:11px}
+.q.hit{border-left:3px solid var(--v-agree)}
+.tag{display:inline-block;font-size:11px;padding:0 6px;border-radius:4px;background:var(--surface-2);color:var(--text-2);margin-left:4px}
+.muted{color:var(--text-3)} .small{font-size:12px}
+.pager{display:flex;gap:8px;align-items:center;margin:10px 0;color:var(--text-2)} .pager button{font:inherit;padding:4px 10px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:6px;cursor:pointer}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px} .kv dt{color:var(--text-3)} .kv dd{margin:0}
+.srt{font-size:10px;color:var(--text-3)}
+details summary{cursor:pointer;color:var(--text-2)}
+.hbar{display:grid;grid-template-columns:150px 1fr 60px;gap:8px;align-items:center;font-size:13px;margin:3px 0}
+.hbar .trk{height:14px;background:var(--surface-2);border-radius:3px;overflow:hidden} .hbar .fill{height:100%;border-radius:3px}
+.hbar .num{text-align:right;color:var(--text-2);font-variant-numeric:tabular-nums}
+.ctab{display:flex;gap:2px;margin-bottom:6px} .ctab button{font:inherit;font-size:12px;padding:3px 8px;border:1px solid var(--line);background:var(--surface);color:var(--text-2);cursor:pointer;border-radius:4px} .ctab button.on{background:var(--surface-2);color:var(--text)}
+.note{font-size:13px;color:var(--text-2);margin:6px 0 0}
+.toggle{float:right;font-size:12px}
+.toggle button{font:inherit;font-size:12px;padding:3px 8px;border:1px solid var(--line);background:var(--surface);color:var(--text-2);border-radius:6px;cursor:pointer}
+code{font-size:12px;background:var(--surface-2);padding:1px 4px;border-radius:3px}
+.method p{max-width:900px}
+</style>
+</head>
+<body>
+<header>
+  <div class="toggle"><button id="theme">Theme</button></div>
+  <h1>Linked Jazz QA: human judgments vs the LLM pipeline</h1>
+  <p class="sub">Relationships asserted by people (Linked Jazz <em>52nd Street</em> crowdsourcing and supervised name tagging, from <a href="https://base.semlab.io" target="_blank" rel="noopener">base.semlab.io</a>) compared with the audited LLM relationships in <code>linked_jazz.sqlite</code>, on the <span id="nT"></span> transcripts both have.</p>
+  <nav>
+    <button data-tab="overview" class="on">Overview</button>
+    <button data-tab="transcripts">Transcripts</button>
+    <button data-tab="pairs">Pair explorer</button>
+    <button data-tab="matrix">Relation matrix</button>
+    <button data-tab="method">Method &amp; definitions</button>
+  </nav>
+</header>
+<main>
+  <section id="tab-overview"></section>
+  <section id="tab-transcripts" hidden></section>
+  <section id="tab-pairs" hidden>
+    <div class="filters" id="pf"></div>
+    <div class="filters" id="pf2"></div>
+    <p class="note" style="margin:0 0 8px">Each card is one interviewee → person pair. The two columns are independent: the left shows what crowd users decided and the passage they were shown, the right shows what the LLM decided and the passage it quoted. A green bar marks a passage both sides used.</p>
+    <div id="pcount" class="muted small"></div>
+    <div id="plist"></div>
+    <div class="pager" id="pager"></div>
+  </section>
+  <section id="tab-matrix" hidden></section>
+  <section id="tab-method" hidden class="method"></section>
+</main>
+<script src="data.js"></script>
+<script>
+const D = window.QA_DATA;
+const T = Object.fromEntries(D.transcripts.map(t => [t.transcript, t]));
+const PAIRS = D.pairs;
+const V = {
+  agree:  {l:"Agree",            c:"var(--v-agree)",  d:"The LLM relation is one the humans chose for this pair (or both only say 'knows of')."},
+  near:   {l:"Near",             c:"var(--v-near)",   d:"Same tier of relation (e.g. played with / in music group with / collaborated with) but not the same term."},
+  llm_weaker:{l:"LLM weaker",    c:"var(--v-weaker)", d:"Humans asserted a real tie; the LLM pipeline only recorded 'knows of' (a name mention)."},
+  differ: {l:"Differ",           c:"var(--v-differ)", d:"Both sides classified the pair, with incompatible relations."},
+  llm_upgraded:{l:"LLM upgraded",c:"var(--v-up)",     d:"Humans only tagged the name ('knows of' from supervised NER); the LLM asserted a relationship."},
+  llm_only:{l:"LLM only",        c:"var(--v-llm)",    d:"A person with an LLM relationship whom the human layer never tagged in this transcript."},
+  human_only_person_missing:{l:"Human only: person missing", c:"var(--v-human)", d:"Humans asserted a tie; the LLM pipeline has no person entry for them in this transcript."},
+  human_only_skipped:{l:"Human only: LLM skipped", c:"var(--v-human)", d:"Humans asserted a tie; the LLM pipeline detected the person but skipped them (host / not a person / co-subject only)."},
+  human_only_no_relation:{l:"Human only: no relation", c:"var(--v-human)", d:"Humans asserted a tie; the LLM pipeline has the person but no relationship row."},
+  ner_only_person_missing:{l:"NER only: person missing", c:"var(--v-miss)", d:"A name the human-supervised tagger found that the LLM pipeline has no person entry for."},
+  ner_only_skipped:{l:"NER only: LLM skipped", c:"var(--v-miss)", d:"A tagged name that the LLM pipeline skipped (host / not a person)."},
+  ner_only_no_relation:{l:"NER only: no relation", c:"var(--v-miss)", d:"A tagged name with a person entry but no relationship row."},
+  subject_unmatched:{l:"Subject unmatched", c:"var(--v-miss)", d:"The human statement's subject (a co-interviewee) has no subject entry in the SQLite document."},
+  other:{l:"Other", c:"var(--v-miss)", d:""}
+};
+const CROWD_ORDER = ["agree","near","llm_weaker","differ","human_only_person_missing","human_only_skipped","human_only_no_relation","subject_unmatched"];
+const ALL_ORDER = [...CROWD_ORDER, "llm_upgraded","ner_only_person_missing","ner_only_skipped","ner_only_no_relation","llm_only","other"];
+const RELS = ["knows of","has met","acquaintance of","friend of","played with","in music group with","toured with","collaborated with","played under","bandleader of","mentor of","mentored by","influenced by","influence on"];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = (a,b) => b ? Math.round(100*a/b) + "%" : "–";
+const fmt = n => (n ?? 0).toLocaleString();
+const docOf = (t, d) => (T[t].sqlite_docs.find(x => x.doc_id === d) || T[t].sqlite_docs[0]);
+const blockUrl = (t, d, p, b) => { const doc = docOf(t, d); return doc ? `${doc.transcript_url}#b${p}-${b}` : null; };
+const semItem = q => `https://base.semlab.io/wiki/Item:${q}`;
+const wdUrl = q => `https://www.wikidata.org/wiki/${q}`;
+const netUrl = q => q ? `https://thisismattmiller.github.io/linked-jazz-2026-network/#wd:${q}` : null;
+const isCrowd = p => p.cr && p.cr.length;
+const judged = p => ["agree","near","llm_weaker","differ"].includes(p.v);
+
+// ---------- tabs
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(name){
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== "tab-" + name);
+  location.hash = name; window.scrollTo(0,0);
+}
+document.getElementById("theme").onclick = () => {
+  const r = document.documentElement; const cur = r.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  r.dataset.theme = cur === "dark" ? "light" : "dark"; try{localStorage.setItem("qa-theme", r.dataset.theme)}catch(e){}
+};
+try{ const th = localStorage.getItem("qa-theme"); if (th) document.documentElement.dataset.theme = th; }catch(e){}
+document.getElementById("nT").textContent = D.transcripts.length;
+
+// ---------- helpers
+function stackBar(counts, order, total){
+  total = total || order.reduce((a,k) => a + (counts[k]||0), 0);
+  return `<div class="bar">${order.filter(k => counts[k]).map(k => `<div style="width:${100*counts[k]/total}%;background:${V[k].c}" title="${V[k].l}: ${counts[k]} (${pct(counts[k],total)})"></div>`).join("")}</div>
+  <div class="legend">${order.filter(k => counts[k]).map(k => `<span style="--c:${V[k].c}">${V[k].l} <b>${counts[k]}</b> · ${pct(counts[k],total)}</span>`).join("")}</div>`;
+}
+function hbars(rows, color){ // rows: [label, n, total, extra]
+  const max = Math.max(...rows.map(r => r[1]), 1);
+  return rows.map(r => `<div class="hbar"><div title="${esc(r[0])}">${esc(r[0])}</div><div class="trk"><div class="fill" style="width:${100*r[1]/max}%;background:${color}"></div></div><div class="num">${fmt(r[1])}${r[2] ? ` <span class="muted">(${pct(r[1], r[2])})</span>` : ""}</div></div>`).join("");
+}
+function countBy(arr, f){ const c = {}; for (const x of arr){ const k = f(x); if (k == null) continue; c[k] = (c[k]||0)+1; } return c; }
+
+// ---------- overview
+function renderOverview(){
+  const crowd = PAIRS.filter(isCrowd), J = crowd.filter(judged);
+  const cv = countBy(crowd, p => p.v), av = countBy(PAIRS, p => p.v);
+  const ner = PAIRS.filter(p => p.ner && !isCrowd(p));
+  const nerFound = ner.filter(p => p.sp.length).length;
+  const crowdFound = crowd.filter(p => p.sp.length).length;
+  const refs = D.transcripts.reduce((a,t) => a + t.n_ref_blocks, 0), al = D.transcripts.reduce((a,t) => a + t.n_aligned, 0);
+  const nCrowdStmts = D.transcripts.reduce((a,t) => a + t.n_crowd, 0), nNer = D.transcripts.reduce((a,t) => a + t.n_ner, 0), nSq = D.transcripts.reduce((a,t) => a + t.n_sqlite_rels, 0);
+  const byCons = {}; for (const p of J){ const k = p.cm >= 3 ? "3+" : String(p.cm || 1); (byCons[k] ||= {})[p.v] = ((byCons[k]||{})[p.v]||0)+1; }
+  const byConf = {}; for (const p of J){ const c = p.lc ?? 0; const k = c >= 0.9 ? "≥ 0.90" : c >= 0.8 ? "0.80–0.89" : c >= 0.7 ? "0.70–0.79" : "< 0.70"; (byConf[k] ||= {})[p.v] = ((byConf[k]||{})[p.v]||0)+1; }
+  const byColl = {}; for (const p of J){ const k = T[p.t].collection; (byColl[k] ||= {})[p.v] = ((byColl[k]||{})[p.v]||0)+1; }
+  const collName = {hamilton:"Hamilton College (Fillius Jazz Archive)", si:"Smithsonian (NEA Jazz Masters)", rutgers:"Rutgers (IJS Jazz Oral History)"};
+  const sameP = countBy(J, p => String(p.same));
+  const el = document.getElementById("tab-overview");
+  el.innerHTML = `
+  <div class="tiles">
+    <div class="tile"><div class="n">${D.transcripts.length}</div><div class="l">overlapping transcripts</div><div class="s">${Object.entries(countBy(D.transcripts, t => t.collection)).map(([k,v]) => `${v} ${k}`).join(" · ")}</div></div>
+    <div class="tile"><div class="n">${fmt(nCrowdStmts)}</div><div class="l">human relationship statements</div><div class="s">52nd Street crowd, ${fmt(crowd.length)} person pairs</div></div>
+    <div class="tile"><div class="n">${fmt(nNer)}</div><div class="l">human name tags</div><div class="s">supervised NER, stored as 'knows of'</div></div>
+    <div class="tile"><div class="n">${fmt(nSq)}</div><div class="l">LLM relationship rows</div><div class="s">audited, in the same documents</div></div>
+    <div class="tile"><div class="n">${pct(cv.agree, J.length)}</div><div class="l">exact agreement</div><div class="s">${pct((cv.agree||0)+(cv.near||0), J.length)} exact or near · ${J.length} judged pairs</div></div>
+    <div class="tile"><div class="n">${pct(cv.differ, J.length)}</div><div class="l">real disagreement</div><div class="s">${cv.differ} pairs with incompatible relations</div></div>
+    <div class="tile"><div class="n">${pct(crowdFound, crowd.length)}</div><div class="l">crowd-tied people found by LLM</div><div class="s">${crowd.length - crowdFound} missing of ${crowd.length}</div></div>
+    <div class="tile"><div class="n">${pct(nerFound, ner.length)}</div><div class="l">tagged names found by LLM</div><div class="s">${ner.length - nerFound} missing of ${fmt(ner.length)}</div></div>
+    <div class="tile"><div class="n">${fmt(av.llm_only)}</div><div class="l">LLM-only ties</div><div class="s">people the human layer never tagged</div></div>
+    <div class="tile"><div class="n">${pct(al, refs)}</div><div class="l">evidence blocks aligned</div><div class="s">${fmt(al)} of ${fmt(refs)} human reference blocks located in the new transcripts</div></div>
+  </div>
+  <div class="card"><h2>Crowd-judged pairs: how the LLM compares <small>${crowd.length} pairs where a person asserted a relationship</small></h2>
+    ${stackBar(cv, CROWD_ORDER)}
+    <p class="note">A pair counts as <b>agree</b> when the LLM relation is one of the relations the crowd chose (crowd users could pick several for the same pair; ${crowd.filter(p => p.cr.length > 1).length} pairs carry more than one). Click any verdict in the <a href="#pairs" onclick="showTab('pairs');setFilter({v:'differ'})">pair explorer</a> to read the evidence on both sides.</p>
+  </div>
+  <div class="row">
+    <div class="card"><h2>Agreement rises with crowd consensus <small>judged pairs by number of users who agreed</small></h2>
+      ${["1","2","3+"].map(k => byCons[k] ? `<div style="margin-bottom:10px"><div class="small muted">consensus ${k} · ${Object.values(byCons[k]).reduce((a,b)=>a+b,0)} pairs</div>${stackBar(byCons[k], ["agree","near","llm_weaker","differ"])}</div>` : "").join("")}
+      <p class="note">Most crowd statements rest on a single user's vote. Where two or more users agreed, the LLM matches far more often, which suggests many single-vote "ties" are loose readings rather than LLM misses.</p>
+    </div>
+    <div class="card"><h2>…and with LLM confidence <small>judged pairs by the pipeline's own confidence</small></h2>
+      ${["≥ 0.90","0.80–0.89","0.70–0.79","< 0.70"].map(k => byConf[k] ? `<div style="margin-bottom:10px"><div class="small muted">confidence ${k} · ${Object.values(byConf[k]).reduce((a,b)=>a+b,0)} pairs</div>${stackBar(byConf[k], ["agree","near","llm_weaker","differ"])}</div>` : "").join("")}
+      <p class="note">Confidence here is the LLM's self-reported score on the relationship row; "LLM weaker" rows are mostly high-confidence 'knows of' mentions.</p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card"><h2>By archive</h2>
+      ${Object.entries(byColl).map(([k,v]) => `<div style="margin-bottom:10px"><div class="small muted">${collName[k] || k} · ${Object.values(v).reduce((a,b)=>a+b,0)} judged pairs</div>${stackBar(v, ["agree","near","llm_weaker","differ"])}</div>`).join("")}
+    </div>
+    <div class="card"><h2>Did both sides cite the same passage? <small>judged pairs</small></h2>
+      ${hbars([["same block(s)", sameP["true"]||0, J.length], ["different blocks", sameP["false"]||0, J.length], ["unknown (not aligned)", sameP["null"]||0, J.length]], "var(--accent)")}
+      <p class="note">"Same" means a block behind the crowd's judgment aligns to a block the LLM quoted as its source. Name-tag blocks are not counted.</p>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card"><h2>What the crowd asserted <small>statements by relation</small></h2>${hbars(Object.entries(D.agg.crowd_relation_dist).sort((a,b)=>b[1]-a[1]), "var(--human)")}</div>
+    <div class="card"><h2>What the LLM asserted for the same people <small>pairs with a human statement, by LLM relation (directed from the interviewee)</small></h2>${hbars(Object.entries(countBy(PAIRS.filter(p => p.h.length && p.lr), p => p.lr)).sort((a,b)=>b[1]-a[1]), "var(--llm)")}</div>
+  </div>
+  <div class="card"><h2>All ${fmt(PAIRS.length)} person pairs, every layer</h2>${stackBar(av, ALL_ORDER)}
+    <p class="note">The name-tag layer (supervised NER, 'knows of') is the bulk of the human data. The LLM pipeline found ${pct(nerFound, ner.length)} of those people and asserted a stronger relationship for ${fmt(av.llm_upgraded)} of them; it also found ${fmt(av.llm_only)} people with ties whom the human layer never tagged.</p>
+  </div>`;
+}
+
+// ---------- transcripts
+let sortKey = "label", sortDir = 1;
+function renderTranscripts(){
+  const rows = D.transcripts.map(t => {
+    const cv = t.crowd_verdicts || {}, v = t.verdicts || {};
+    return {q: t.transcript, label: t.label, coll: t.collection, crowd: t.crowd_pairs || 0, exact: t.crowd_exact_rate, agree: t.crowd_agree_rate,
+      a: cv.agree||0, n: cv.near||0, w: cv.llm_weaker||0, d: cv.differ||0, h: (cv.human_only_person_missing||0)+(cv.human_only_skipped||0)+(cv.human_only_no_relation||0),
+      up: v.llm_upgraded||0, lo: v.llm_only||0, nm: (v.ner_only_person_missing||0)+(v.ner_only_skipped||0), sq: t.n_sqlite_rels, ner: t.n_ner, al: t.n_ref_blocks ? t.n_aligned/t.n_ref_blocks : 0, t};
+  });
+  rows.sort((x,y) => { const a = x[sortKey], b = y[sortKey]; return (a == null) - (b == null) || (typeof a === "string" ? a.localeCompare(b) : a - b) * sortDir; });
+  const cols = [["label","Transcript"],["coll","Archive"],["crowd","Crowd pairs","num"],["exact","Exact","num"],["agree","Exact+near","num"],["a","Agree","num"],["n","Near","num"],["w","Weaker","num"],["d","Differ","num"],["h","Human only","num"],["up","LLM upgraded","num"],["lo","LLM only","num"],["ner","Name tags","num"],["nm","Tags missed","num"],["sq","LLM rows","num"],["al","Blocks aligned","num"]];
+  document.getElementById("tab-transcripts").innerHTML = `<div class="card"><h2>Per transcript <small>click a row to open its pairs; click a header to sort</small></h2>
+  <div style="overflow-x:auto"><table><thead><tr>${cols.map(c => `<th class="${c[2]||""}" data-k="${c[0]}">${c[1]} ${sortKey===c[0] ? `<span class="srt">${sortDir>0?"▲":"▼"}</span>` : ""}</th>`).join("")}</tr></thead>
+  <tbody>${rows.map(r => `<tr class="click" data-q="${r.q}"><td>${esc(r.label)}<div class="small muted">${r.t.sqlite_docs.map(d => esc(d.doc_id)).join(", ")}${r.t.candidate_docs_dropped.length ? ` · <span title="other SQLite sessions of this interviewee, not covered by the semlab transcript">+${r.t.candidate_docs_dropped.length} other session</span>` : ""}</div></td><td>${r.coll}</td><td class="num">${r.crowd}</td><td class="num">${r.exact == null ? "–" : Math.round(100*r.exact)+"%"}</td><td class="num">${r.agree == null ? "–" : Math.round(100*r.agree)+"%"}</td><td class="num">${r.a}</td><td class="num">${r.n}</td><td class="num">${r.w}</td><td class="num">${r.d}</td><td class="num">${r.h}</td><td class="num">${r.up}</td><td class="num">${r.lo}</td><td class="num">${r.ner}</td><td class="num">${r.nm}</td><td class="num">${r.sq}</td><td class="num">${Math.round(100*r.al)}%</td></tr>`).join("")}</tbody></table></div></div>`;
+  document.querySelectorAll("#tab-transcripts th").forEach(th => th.onclick = () => { const k = th.dataset.k; if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === "label" || k === "coll" ? 1 : -1; } renderTranscripts(); });
+  document.querySelectorAll("#tab-transcripts tr.click").forEach(tr => tr.onclick = () => { showTab("pairs"); setFilter({t: tr.dataset.q, v: "", layer: "crowd"}); });
+}
+
+// ---------- matrix
+let matrixMode = "crowd";
+function renderMatrix(){
+  const pairs = PAIRS.filter(p => isCrowd(p) && (matrixMode === "all" || judged(p)));
+  const hum = RELS.filter(r => pairs.some(p => p.cr.includes(r)));
+  const llm = [...RELS.filter(r => pairs.some(p => p.lr === r)), "— (none)"];
+  const m = {}; let max = 0;
+  for (const p of pairs) for (const c of p.cr){ const k = c + "|" + (p.lr || "— (none)"); m[k] = (m[k]||0)+1; max = Math.max(max, m[k]); }
+  const shade = n => n ? (n > max*0.6 ? "var(--seq5)" : n > max*0.35 ? "var(--seq4)" : n > max*0.15 ? "var(--seq3)" : n > max*0.05 ? "var(--seq2)" : "var(--seq1)") : "transparent";
+  const ink = n => n > max*0.35 ? "#fff" : "var(--text)";
+  document.getElementById("tab-matrix").innerHTML = `<div class="card"><h2>Human relation (rows) × LLM relation (columns) <small>each crowd statement counted once against the LLM relation for the same pair · click a cell to see those pairs</small></h2>
+  <div class="ctab"><button class="${matrixMode==="crowd"?"on":""}" data-m="crowd">Judged pairs only</button><button class="${matrixMode==="all"?"on":""}" data-m="all">Include pairs with no LLM relation</button></div>
+  <div style="overflow-x:auto"><table class="hm"><thead><tr><th></th>${llm.map(r => `<th>${esc(r)}</th>`).join("")}<th class="num">total</th></tr></thead>
+  <tbody>${hum.map(h => { const tot = llm.reduce((a,l) => a + (m[h+"|"+l]||0), 0); return `<tr><td class="rowh">${esc(h)}</td>${llm.map(l => { const n = m[h+"|"+l]||0; const same = h === l; return `<td class="${n?"":"z"}" style="background:${shade(n)};color:${n?ink(n):"var(--text-3)"};${same?"outline:2px solid var(--v-agree);outline-offset:-2px":""}" data-h="${esc(h)}" data-l="${esc(l)}" title="${esc(h)} → ${esc(l)}: ${n}">${n||"·"}</td>`; }).join("")}<td class="num rowh">${tot}</td></tr>`; }).join("")}</tbody></table></div>
+  <p class="note">LLM relations are rewritten from the interviewee's point of view so they line up with the human properties: a row stored as <i>played under</i> with direction <i>interviewee</i> (the interviewee led the band) appears as <b>bandleader of</b>; <i>mentor of</i> with direction <i>target</i> appears as <b>mentored by</b>. Outlined cells are exact matches. The crowd's property list had no <i>mentored by</i>, so human <i>mentor of</i> was used in both directions; see Method.</p></div>`;
+  document.querySelectorAll("#tab-matrix .ctab button").forEach(b => b.onclick = () => { matrixMode = b.dataset.m; renderMatrix(); });
+  document.querySelectorAll("#tab-matrix td[data-h]").forEach(td => td.onclick = () => { showTab("pairs"); setFilter({t:"", v:"", layer:"crowd", hr: td.dataset.h, lr: td.dataset.l === "— (none)" ? "__none__" : td.dataset.l}); });
+}
+
+// ---------- pairs explorer
+const F = {t:"", v:"", layer:"crowd", hr:"", lr:"", cons:"", conf:"", same:"", q:"", sort:"verdict"};
+let page = 0; const PAGE = 40;
+function setFilter(o){ Object.assign(F, {t:"", v:"", layer:"crowd", hr:"", lr:"", cons:"", conf:"", same:"", q:""}, o); page = 0; renderPairFilters(); renderPairs(); }
+function filtered(){
+  const q = F.q.trim().toLowerCase();
+  return PAIRS.filter(p => {
+    if (F.t && p.t !== F.t) return false;
+    if (F.layer === "crowd" && !isCrowd(p)) return false;
+    if (F.layer === "ner" && !(p.ner && !isCrowd(p))) return false;
+    if (F.layer === "llm" && p.v !== "llm_only") return false;
+    if (F.v && p.v !== F.v) return false;
+    if (F.hr && !(p.cr||[]).includes(F.hr)) return false;
+    if (F.lr === "__none__" ? p.lr : (F.lr && p.lr !== F.lr)) return false;
+    if (F.cons && (p.cm||0) < +F.cons) return false;
+    if (F.conf === "hi" && !(p.lc >= 0.9)) return false;
+    if (F.conf === "lo" && !(p.lc != null && p.lc < 0.8)) return false;
+    if (F.same && String(p.same) !== F.same) return false;
+    if (q && !((p.ol||"").toLowerCase().includes(q) || (p.sl||"").toLowerCase().includes(q) || p.sp.some(s => (s.c||"").toLowerCase().includes(q)) || (p.ow||"").toLowerCase() === q)) return false;
+    return true;
+  });
+}
+function renderPairFilters(){
+  const base = PAIRS.filter(p => (!F.t || p.t === F.t) && (F.layer !== "crowd" || isCrowd(p)) && (F.layer !== "ner" || (p.ner && !isCrowd(p))) && (F.layer !== "llm" || p.v === "llm_only"));
+  const vc = countBy(base, p => p.v);
+  const order = ALL_ORDER.filter(k => vc[k]);
+  document.getElementById("pf").innerHTML = `
+    <select id="f-t"><option value="">All ${D.transcripts.length} transcripts</option>${D.transcripts.slice().sort((a,b)=>a.label.localeCompare(b.label)).map(t => `<option value="${t.transcript}" ${F.t===t.transcript?"selected":""}>${esc(t.label)}</option>`).join("")}</select>
+    <select id="f-layer"><option value="crowd" ${F.layer==="crowd"?"selected":""}>Crowd-judged pairs</option><option value="ner" ${F.layer==="ner"?"selected":""}>Name-tag only pairs (NER)</option><option value="llm" ${F.layer==="llm"?"selected":""}>LLM-only pairs</option><option value="all" ${F.layer==="all"?"selected":""}>Every pair</option></select>
+    <select id="f-hr"><option value="">Human relation: any</option>${RELS.filter(r => PAIRS.some(p => (p.cr||[]).includes(r))).map(r => `<option ${F.hr===r?"selected":""}>${r}</option>`).join("")}</select>
+    <select id="f-lr"><option value="">LLM relation: any</option><option value="__none__" ${F.lr==="__none__"?"selected":""}>none</option>${RELS.filter(r => PAIRS.some(p => p.lr === r)).map(r => `<option ${F.lr===r?"selected":""}>${r}</option>`).join("")}</select>
+    <select id="f-cons"><option value="">Consensus: any</option><option value="2" ${F.cons==="2"?"selected":""}>≥ 2 users</option><option value="3" ${F.cons==="3"?"selected":""}>≥ 3 users</option></select>
+    <select id="f-conf"><option value="">LLM confidence: any</option><option value="hi" ${F.conf==="hi"?"selected":""}>≥ 0.90</option><option value="lo" ${F.conf==="lo"?"selected":""}>&lt; 0.80</option></select>
+    <select id="f-same"><option value="">Passage: any</option><option value="true" ${F.same==="true"?"selected":""}>same passage cited</option><option value="false" ${F.same==="false"?"selected":""}>different passages</option></select>
+    <input type="search" id="f-q" placeholder="search a person (name or QID)" value="${esc(F.q)}">
+    <select id="f-sort"><option value="verdict" ${F.sort==="verdict"?"selected":""}>Sort: verdict</option><option value="cons" ${F.sort==="cons"?"selected":""}>Sort: consensus</option><option value="conf" ${F.sort==="conf"?"selected":""}>Sort: LLM confidence</option><option value="name" ${F.sort==="name"?"selected":""}>Sort: person</option></select>
+    <button class="chip" id="f-csv">Export CSV</button>`;
+  document.getElementById("pf2").innerHTML = `<button class="chip ${F.v===""?"on":""}" data-v="">All <span class="cnt">${base.length}</span></button>` + order.map(k => `<button class="chip ${F.v===k?"on":""}" data-v="${k}" style="${F.v===k?"":"border-left:4px solid "+V[k].c}" title="${esc(V[k].d)}">${V[k].l} <span class="cnt">${vc[k]}</span></button>`).join("");
+  for (const id of ["t","layer","hr","lr","cons","conf","same","sort"]) document.getElementById("f-"+id).onchange = e => { F[id] = e.target.value; page = 0; renderPairFilters(); renderPairs(); };
+  document.getElementById("f-q").oninput = e => { F.q = e.target.value; page = 0; renderPairs(); };
+  document.querySelectorAll("#pf2 .chip").forEach(b => b.onclick = () => { F.v = b.dataset.v; page = 0; renderPairFilters(); renderPairs(); });
+  document.getElementById("f-csv").onclick = exportCsv;
+}
+function sortPairs(xs){
+  const vo = Object.fromEntries(ALL_ORDER.map((k,i) => [k,i]));
+  if (F.sort === "cons") return xs.sort((a,b) => (b.cm||0) - (a.cm||0));
+  if (F.sort === "conf") return xs.sort((a,b) => (b.lc||0) - (a.lc||0));
+  if (F.sort === "name") return xs.sort((a,b) => (a.ol||"").localeCompare(b.ol||""));
+  return xs.sort((a,b) => (vo[a.v]??99) - (vo[b.v]??99) || (b.cm||0) - (a.cm||0));
+}
+function renderPairs(){
+  const xs = sortPairs(filtered());
+  document.getElementById("pcount").textContent = `${xs.length} pairs` + (F.t ? ` in ${T[F.t].label}` : "");
+  const pageXs = xs.slice(page*PAGE, (page+1)*PAGE);
+  document.getElementById("plist").innerHTML = pageXs.map(renderPair).join("") || `<p class="muted">No pairs match these filters.</p>`;
+  const n = Math.ceil(xs.length/PAGE);
+  document.getElementById("pager").innerHTML = n > 1 ? `<button ${page===0?"disabled":""} id="pg-prev">‹ prev</button> page ${page+1} of ${n} <button ${page>=n-1?"disabled":""} id="pg-next">next ›</button>` : "";
+  const pv = document.getElementById("pg-prev"), nx = document.getElementById("pg-next");
+  if (pv) pv.onclick = () => { page--; renderPairs(); window.scrollTo(0,0); };
+  if (nx) nx.onclick = () => { page++; renderPairs(); window.scrollTo(0,0); };
+}
+function renderPair(p){
+  const t = T[p.t]; const v = V[p.v] || V.other;
+  const links = [p.oi ? `<a href="${semItem(p.oi)}" target="_blank" rel="noopener">semlab ${p.oi}</a>` : "", p.ow ? `<a href="${wdUrl(p.ow)}" target="_blank" rel="noopener">wikidata ${p.ow}</a>` : "", p.ow ? `<a href="${netUrl(p.ow)}" target="_blank" rel="noopener">network</a>` : ""].filter(Boolean).join(" · ");
+  const sharedKey = new Set(p.l.flatMap(x => x.src.map(s => s.p + "-" + s.b)));
+  const refHtml = r => `<div class="q ${r.al && sharedKey.has(r.al.p + "-" + r.al.b) ? "hit" : ""}"><span class="spk">${esc(r.spk || "")}</span>${esc(r.txt)} <span class="muted small">${r.al ? `<a href="${blockUrl(p.t, r.al.d, r.al.p, r.al.b)}" target="_blank" rel="noopener" title="open in the transcript reader (alignment ${r.al.s})">p${r.al.p} b${r.al.b} ↗</a>` : `block ${esc(r.lid)} (not aligned)`}</span></div>`;
+  const crowdSt = p.h.filter(s => s.m === "crowd"), nerSt = p.h.filter(s => s.m !== "crowd");
+  // crowd users were shown a question/answer pair; several relations often rest on the same pair, so group by passage
+  const byPassage = new Map();
+  for (const s of crowdSt){ const k = s.refs.map(r => r.al ? r.al.p + "-" + r.al.b : "x" + r.b).join("|"); if (!byPassage.has(k)) byPassage.set(k, {refs: s.refs, rels: []}); byPassage.get(k).rels.push(s); }
+  const crowdHtml = [...byPassage.values()].map(g => `<div class="st">${g.rels.map(s => `<span class="rel">${esc(s.rel)}</span><span class="tag" title="users who agreed">${s.con ?? "?"} user${s.con === 1 ? "" : "s"}</span> `).join("")}${g.refs.map(refHtml).join("")}</div>`).join("");
+  const nerRefs = nerSt.flatMap(s => s.refs);
+  const nerHtml = nerSt.length ? `<details class="small"><summary>${crowdSt.length ? "Also: " : ""}name tagged by the supervised tagger in ${nerRefs.length} block${nerRefs.length === 1 ? "" : "s"} (no relationship judged)</summary>${nerRefs.map(refHtml).join("")}</details>` : "";
+  const human = p.h.length ? (crowdSt.length ? crowdHtml : `<p class="muted small" style="margin:0 0 6px">No crowd judgment; only the name tag below.</p>`) + nerHtml : `<p class="muted">No human statement for this person in this transcript.</p>`;
+  const llm = p.l.length ? p.l.map(x => x.skip ? `<div class="st"><span class="rel muted">skipped</span><span class="tag">${esc(x.skip)}</span><div class="small muted">person entry: ${esc(x.canonical)}</div></div>` :
+    `<div class="st"><span class="rel">${esc(x.dr)}</span><span class="tag" title="stored relation / direction">${esc(x.rel)} · ${esc(x.dir)}</span><span class="tag">conf ${x.conf}</span>${x.model && x.model.includes("audit") ? `<span class="tag" title="row written or rewritten by the Opus audit">audit</span>` : ""}
+      ${x.prop ? `<div class="small" style="margin-top:3px">${esc(x.prop)}</div>` : ""}
+      ${x.ev ? `<div class="q"><span class="spk">${esc(x.evs || "")}</span>“${esc(x.ev)}”</div>` : ""}
+      ${x.src.map(s => `<div class="q ${crowdSt.some(h => h.refs.some(r => r.al && r.al.p === s.p && r.al.b === s.b)) ? "hit" : ""}"><span class="spk">${esc(s.spk || "")}</span>${esc(s.txt)} <span class="muted small"><a href="${blockUrl(p.t, x.d, s.p, s.b)}" target="_blank" rel="noopener">p${s.p} b${s.b} ↗</a></span></div>`).join("")}
+      ${x.audit ? `<div class="small muted" style="margin-top:4px">audit: ${esc(x.audit)}</div>` : ""}
+    </div>`).join("") : (p.sp.length ? `<p class="muted">Person entry exists (${p.sp.map(s => esc(s.c)).join(", ")}) but no relationship row for this subject.</p>` : `<p class="muted">No person entry in the LLM pipeline for this transcript.</p>`);
+  const persons = p.sp.length ? `<span class="small muted">LLM person: ${p.sp.map(s => `${esc(s.c)}${s.q ? ` (${s.q})` : ""}${s.n ? ` · ${s.n} mentions` : ""}`).join("; ")}${p.pm ? ` · matched by ${p.pm}` : ""}</span>` : "";
+  return `<div class="pair" style="--vc:${v.c}">
+    <div class="hd"><span class="vb" style="--c:${v.c}" title="${esc(v.d)}">${v.l}</span><span class="who">${esc(p.sl)} <span class="muted">→</span> ${esc(p.ol)}</span><span class="meta">${esc(p.od || "")}</span><span class="meta">${links}</span><span class="meta"><a href="#" onclick="showTab('pairs');setFilter({t:'${p.t}'});return false">${esc(t.label)}</a></span>${p.same === true ? `<span class="tag" style="border-left:3px solid var(--v-agree)" title="the crowd's passage and the LLM's quoted passage are the same block">both cite the same passage</span>` : p.same === false ? `<span class="tag" title="the crowd judged one part of the interview, the LLM quoted another">judged from different passages</span>` : ""}</div>
+    ${persons}
+    <div class="cols" style="margin-top:8px"><div class="side h"><h4>Crowd judgment · the passage users were shown</h4>${human}</div><div class="side l"><h4>LLM judgment · the passage it quoted</h4>${llm}</div></div>
+  </div>`;
+}
+function exportCsv(){
+  const xs = sortPairs(filtered());
+  const rows = [["transcript","transcript_label","verdict","subject","object","object_wikidata","semlab_item","human_relations","human_consensus_max","llm_relation_directed","llm_relation","llm_direction","llm_confidence","llm_evidence","same_passage","sqlite_person","sqlite_doc"]];
+  for (const p of xs){ const l = p.l.find(x => !x.skip) || p.l[0] || {}; rows.push([p.t, T[p.t].label, p.v, p.sl, p.ol, p.ow||"", p.oi||"", (p.cr||[]).join("; "), p.cm ?? "", p.lr||"", l.rel||"", l.dir||"", l.conf ?? "", (l.ev||"").replace(/\s+/g," "), p.same ?? "", p.sp.map(s=>s.c).join("; "), l.d||""]); }
+  const csv = rows.map(r => r.map(x => `"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv"})); a.download = "linked_jazz_qa_pairs.csv"; a.click();
+}
+
+// ---------- method
+function renderMethod(){
+  document.getElementById("tab-method").innerHTML = `<div class="card">
+  <h2>What was compared</h2>
+  <p><b>Human side.</b> The Linked Jazz Wikibase (base.semlab.io) holds the original project's transcripts as items (instance of <i>interview transcript</i>), each transcript's text as block items, and relationship statements on the interviewee's person item (properties <i>knows of</i>, <i>has met</i>, <i>acquaintance of</i>, <i>friend of</i>, <i>played with</i>, <i>in music group with</i>, <i>toured with</i>, <i>collaborated with</i>, <i>played under</i>, <i>mentor of</i>, <i>influenced by</i>). Every statement carries a <i>relationship generation method</i> qualifier, either <b>supervised NER</b> (a name the tagger found, recorded as 'knows of') or <b>crowdsourced – 52nd St</b> (a relationship a user of the 52nd Street game chose, with a <i>52nd St. user consensus</i> count), and references to the block(s) of the transcript it rests on.</p>
+  <p><b>LLM side.</b> <code>linked_jazz.sqlite</code> (schema v2.1, October 2026): per-document person entries (alias-resolved, Wikidata-reconciled) and relationship rows classified by a local LLM and then corrected transcript by transcript by an Opus audit, each with relation, direction, confidence, a verbatim evidence quote and source blocks.</p>
+  <p><b>Overlap.</b> Semlab transcripts whose source is Hamilton College, the Smithsonian or Rutgers were matched to SQLite documents through the interviewee's Wikidata QID (name as fallback). Where an interviewee has two SQLite sessions, the human evidence blocks were aligned to both and the session(s) they actually fall in were kept; the other session is listed as "other session" in the transcript table. Weeksville, University of Michigan and UCLA transcripts exist only on the semlab side and are not compared.</p>
+  <h2>Alignment and matching</h2>
+  <p>Human reference blocks were located in the new transcripts by word 5-gram containment (threshold 0.5; short blocks by substring), giving a deep link into the transcript reader and a "same passage" flag when the LLM cited the same block. People were matched by Wikidata QID first, then by normalised name against the SQLite canonical name, surface forms and the semlab aliases. Subjects (interviewees) were matched to <code>doc_interviewees</code> the same way, so co-subjects of joint interviews compare against their own rows.</p>
+  <h2>Direction</h2>
+  <p>SQLite stores a relation plus a direction naming the senior party. To line up with the human properties, which are all stated from the interviewee, rows are rewritten: <i>played under</i> + direction <i>interviewee</i> → <b>bandleader of</b>; <i>mentor of</i> + direction <i>target</i> → <b>mentored by</b>; <i>influenced by</i> + direction <i>interviewee</i> → <b>influence on</b>. The crowd's property list had <i>mentor of</i> and <i>influenced by</i> but no <i>mentored by</i>, and in practice users applied <i>mentor of</i> in both directions, so human <i>mentor of</i> is treated as compatible with LLM <i>mentored by</i> (counted as <b>near</b>, not agree).</p>
+  <h2>Verdicts</h2>
+  <dl class="kv">${ALL_ORDER.filter(k => V[k].d).map(k => `<dt><span class="vb" style="--c:${V[k].c}">${V[k].l}</span></dt><dd>${esc(V[k].d)}</dd>`).join("")}</dl>
+  <p><b>Near</b> uses tiers: {has met, acquaintance of} ~ {friend of}; {played with, in music group with, toured with, collaborated with, recorded with} ~ {played under / bandleader of}; {mentored by, influenced by} (the other person shaped the interviewee); {mentor of, influence on} (the interviewee shaped them). A crowd pair with several relations agrees if the LLM relation is any one of them.</p>
+  <h2>Caveats</h2>
+  <p>The crowd data is not a gold standard: most statements rest on a single user's vote, and the 52nd Street interface showed a question-and-answer pair, so the referenced blocks are often the question or a neighbouring turn rather than the sentence that carries the tie. The semlab name-tag layer only knew names from a fixed list of jazz musicians, so "LLM only" people are mostly not errors but names the old pipeline could not see. Conversely, "LLM weaker" pairs deserve reading: some are LLM misses, many are generous human readings of a passing mention.</p>
+  <p class="muted small">Data generated ${D.generated}. Source: <code>~/git/linked-jazz-2026-qa</code> (harvest_semlab.py → extract_sqlite.py → compare.py → build_site.py).</p>
+  </div>`;
+}
+
+renderOverview(); renderTranscripts(); renderMatrix(); renderMethod(); renderPairFilters(); renderPairs();
+const h = location.hash.replace("#",""); if (["overview","transcripts","pairs","matrix","method"].includes(h)) showTab(h);
+</script>
+</body>
+</html>
